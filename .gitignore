@@ -1,0 +1,7 @@
+/vendor/
+/composer.lock
+/.phpunit.cache/
+/node_modules/
+.DS_Store
+/tests/Specification/reports/
+/tests/Specification/reports-pi/
