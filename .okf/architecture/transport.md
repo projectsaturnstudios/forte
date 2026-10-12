@@ -5,7 +5,7 @@ description: Listener, TLS handshake and drain, write cap, HTTP request bufferin
 resource: src/Servers/Forte/Http/
 tags: [forte, tcp, tls, http, websocket]
 status: draft
-generated: { by: claude-opus/5.5, at: 2026-10-12T03:45:26Z }
+generated: { by: claude-opus/5.5, at: 2026-10-12T04:48:47Z }
 sources:
   - id: server
     resource: src/Servers/Forte/Http/Server.php
@@ -34,7 +34,7 @@ sources:
 
 * **TLS handshake**: `stream_socket_enable_crypto` non-blocking, armed on readable only (armed on writable it spins: socket always writable). `0` → wait for client's next flight. Done → client's first app data may already sit decrypted in OpenSSL → read immediately.
 * **TLS drain**: OpenSSL decrypts whole records; bytes past one `fread` can sit in its buffer with the kernel socket empty → no wakeup. TLS reads loop until a short read. Plain TCP: one read per wakeup (level-triggered).
-* **Writes**: try `fwrite` directly when buffer empty; remainder buffered + writable watch. Buffer past `MAX_WRITE_BUFFER` (1 MiB; `Server`/`Factory` arg raises it, Autobahn server does) → terminate. Bounds memory for clients that stop reading. Reverb on React buffered unbounded.
+* **Writes**: `send()` only appends to the write buffer and queues one flush per connection per tick (`futureTick`); the flush writes everything queued in one `fwrite`. Remainder → writable watch armed once until drained. Coalescing is what React's buffered streams did for Reverb: an event fanned out while others are in flight costs one syscall per connection, not per frame. Writing each frame immediately (0.10.0) cost ~2× syscalls per delivery and lost ~25% throughput to Reverb at 950 connections on 1 vCPU. Buffer past `MAX_WRITE_BUFFER` (1 MiB; `Server`/`Factory` arg raises it, Autobahn server does) → terminate, checked on every `send()`. Bounds memory for clients that stop reading. Reverb on React buffered unbounded.
 * **close()** flushes then closes; **terminate()** now, `onClose` once.
 * **Request buffer**: Reverb's `Request::from()` fills `buffer()` until `\r\n\r\n` + body; `max_request_size` enforced there.
 

@@ -298,6 +298,8 @@ it('resolves with the metrics that arrived when a subscriber never answers, on t
 
         public function cancelWritable($stream): void {}
 
+        public function futureTick(callable $fn): void {}
+
         public function addTimer(float $seconds, callable $fn): Timer
         {
             return $this->timers[] = new Timer($seconds, false, $fn(...));

@@ -25,6 +25,12 @@ class Connection
 
     protected bool $handshaking;
 
+    /** A flush is queued for the next tick. */
+    protected bool $flushQueued = false;
+
+    /** The socket would not take everything; the writable watch drains the rest. */
+    protected bool $writableArmed = false;
+
     /** @var ?callable(string): void */
     protected $onData = null;
 
@@ -109,37 +115,26 @@ class Connection
         $this->onClose = $callback;
     }
 
+    /**
+     * Queue bytes for the socket. Everything sent to this connection during one pass of the loop
+     * goes out in one write at the start of the next, as React's buffered streams do for Reverb:
+     * an event fanned out while others are in flight costs one syscall per connection, not one per frame.
+     */
     public function send(string $data): self
     {
         if ($this->closed || $this->closing) {
             return $this;
         }
 
-        if ($this->writeBuffer === '' && ! $this->handshaking) {
-            $written = @fwrite($this->stream, $data);
+        $this->writeBuffer .= $data;
 
-            if ($written === false) {
-                $this->terminate();
+        if (strlen($this->writeBuffer) > $this->maxWriteBuffer) {
+            $this->terminate();
 
-                return $this;
-            }
-
-            $data = (string) substr($data, $written);
+            return $this;
         }
 
-        if ($data !== '') {
-            $this->writeBuffer .= $data;
-
-            if (strlen($this->writeBuffer) > $this->maxWriteBuffer) {
-                $this->terminate();
-
-                return $this;
-            }
-
-            if (! $this->handshaking) {
-                $this->loop->onWritable($this->stream, $this->handleWritable(...));
-            }
-        }
+        $this->queueFlush();
 
         return $this;
     }
@@ -220,12 +215,42 @@ class Connection
             $this->writeBuffer = (string) substr($this->writeBuffer, $written);
         }
 
-        if ($this->writeBuffer === '') {
-            $this->loop->cancelWritable($this->stream);
-
-            if ($this->closing) {
-                $this->terminate();
+        if ($this->writeBuffer !== '') {
+            if (! $this->writableArmed) {
+                $this->writableArmed = true;
+                $this->loop->onWritable($this->stream, $this->handleWritable(...));
             }
+
+            return;
+        }
+
+        if ($this->writableArmed) {
+            $this->writableArmed = false;
+            $this->loop->cancelWritable($this->stream);
+        }
+
+        if ($this->closing) {
+            $this->terminate();
+        }
+    }
+
+    /** One flush per tick; none while the writable watch is draining or TLS is still negotiating. */
+    protected function queueFlush(): void
+    {
+        if ($this->flushQueued || $this->writableArmed || $this->handshaking) {
+            return;
+        }
+
+        $this->flushQueued = true;
+        $this->loop->futureTick($this->flush(...));
+    }
+
+    protected function flush(): void
+    {
+        $this->flushQueued = false;
+
+        if (! $this->closed && ! $this->writableArmed) {
+            $this->handleWritable();
         }
     }
 
@@ -243,7 +268,7 @@ class Connection
             $this->handshaking = false;
 
             if ($this->writeBuffer !== '') {
-                $this->loop->onWritable($this->stream, $this->handleWritable(...));
+                $this->queueFlush();
             }
 
             // The client's first application data may already be decrypted inside OpenSSL.

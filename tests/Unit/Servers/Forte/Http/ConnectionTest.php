@@ -32,13 +32,29 @@ it('delivers incoming bytes to the data callback', function () {
     expect($received)->toBe('hello');
 });
 
-it('writes immediately when the socket accepts it', function () {
+it('writes on the next tick, and everything sent in one tick goes out together', function () {
     [$loop, $connection, $client] = pairOnLoop();
 
-    $connection->send('pong');
+    $connection->send('po');
+    $connection->send('ng');
+
+    expect(stream_get_contents($client))->toBe('');
+
+    $loop->tick(0.0);
+
+    expect(stream_get_contents($client))->toBe('pong');
+});
+
+it('does not write to a connection that closed before its flush', function () {
+    [$loop, $connection, $client] = pairOnLoop();
+    $closed = 0;
+    $connection->onClose(function () use (&$closed) { $closed++; });
+
+    $connection->send('queued');
+    $connection->send(str_repeat('x', Connection::MAX_WRITE_BUFFER)); // over the cap: torn down now
     pump($loop);
 
-    expect(fread($client, 10))->toBe('pong');
+    expect($closed)->toBe(1)->and(is_resource($connection->stream()))->toBeFalse();
 });
 
 it('buffers a write the socket cannot take and flushes it when writable', function () {
@@ -84,7 +100,7 @@ it('drops a connection whose write buffer exceeds the cap', function () {
     $closed = 0;
     $connection->onClose(function () use (&$closed) { $closed++; });
 
-    // The kernel takes the first few KB of each write; two cap-sized sends overflow what is left.
+    // Sends in one tick queue together, so two cap-sized sends overflow the cap before any write.
     $connection->send(str_repeat('x', Connection::MAX_WRITE_BUFFER));
     $connection->send(str_repeat('x', Connection::MAX_WRITE_BUFFER));
     pump($loop);

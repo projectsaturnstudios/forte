@@ -25,6 +25,9 @@ class Loop implements LoopInterface
 
     protected bool $running = false;
 
+    /** @var list<callable> callbacks for the start of the next tick */
+    protected array $futureTicks = [];
+
     /** True while run() is driving tick(); lets tick() honour a stop() made by a timer before it blocks. */
     protected bool $inRun = false;
 
@@ -85,6 +88,11 @@ class Loop implements LoopInterface
         $this->sync($fd, $stream, $had);
     }
 
+    public function futureTick(callable $fn): void
+    {
+        $this->futureTicks[] = $fn;
+    }
+
     public function addTimer(float $seconds, callable $fn): Timer
     {
         return $this->schedule(new Timer($seconds, false, $fn(...)));
@@ -121,13 +129,21 @@ class Loop implements LoopInterface
 
     public function tick(?float $timeout = null): void
     {
+        $ticks = $this->futureTicks;
+        $this->futureTicks = [];
+
+        foreach ($ticks as $fn) {
+            $fn();
+        }
+
         $this->fireDueTimers();
 
         if ($this->inRun && ! $this->running) {
             return; // a timer called stop(): don't block on the next wait
         }
 
-        $wait = $this->secondsUntilNextTimer();
+        // A future tick queued by a timer or another future tick must not sit behind a blocking wait.
+        $wait = $this->futureTicks === [] ? $this->secondsUntilNextTimer() : 0.0;
 
         if ($timeout !== null) {
             $wait = $wait === null ? $timeout : min($wait, $timeout);

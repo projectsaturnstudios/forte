@@ -5,7 +5,7 @@ description: Driver pick (epoll, kqueue, select), resource-id keys, level-trigge
 resource: src/Servers/Forte/Loop/Loop.php
 tags: [forte, loop, epoll, kqueue, select, timers]
 status: draft
-generated: { by: claude-opus/5.5, at: 2026-10-12T03:45:26Z }
+generated: { by: claude-opus/5.5, at: 2026-10-12T04:48:47Z }
 sources:
   - id: loop
     resource: src/Servers/Forte/Loop/Loop.php
@@ -36,10 +36,11 @@ Level-triggered on all three drivers: unread bytes report again next wait. One r
 
 ## tick(?float $timeout)
 
-1. fire due timers
-2. stopped by a timer during `run()` → return before blocking
-3. wait = min(next timer, timeout); null + no watches → stop (no idle spin)
-4. driver wait → readers then writers per ready stream
+1. run future ticks queued before this tick (`futureTick()`, FIFO; ones they queue wait for the next tick)
+2. fire due timers
+3. stopped by a timer during `run()` → return before blocking
+4. wait = 0 if a future tick is queued, else min(next timer, timeout); null + no watches → stop (no idle spin)
+5. driver wait → readers then writers per ready stream
 
 `run()` = tick until `stop()`. Tests drive `tick()` directly.
 

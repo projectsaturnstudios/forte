@@ -140,3 +140,57 @@ it('leaves no trace of a watch the driver refused', function () {
 
     expect($fired)->toBeTrue();
 });
+
+it('runs future ticks on the next tick, in the order queued', function () {
+    $loop = selectLoop();
+    $order = [];
+    $loop->futureTick(function () use (&$order) { $order[] = 'a'; });
+    $loop->futureTick(function () use (&$order) { $order[] = 'b'; });
+
+    expect($order)->toBe([]);
+
+    $loop->tick(0.0);
+
+    expect($order)->toBe(['a', 'b']);
+});
+
+it('runs a future tick queued by a future tick on the tick after', function () {
+    $loop = selectLoop();
+    $runs = 0;
+    $loop->futureTick(function () use ($loop, &$runs) {
+        $runs++;
+        $loop->futureTick(function () use (&$runs) { $runs++; });
+    });
+
+    $loop->tick(0.0);
+    expect($runs)->toBe(1);
+
+    $loop->tick(0.0);
+    expect($runs)->toBe(2);
+});
+
+it('does not wait on streams while a future tick is queued', function () {
+    $loop = selectLoop();
+    [$a] = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
+    $loop->onReadable($a, fn () => null); // never readable: a blocking wait would sit the whole timeout
+    $loop->addTimer(0, fn () => $loop->futureTick(fn () => null));
+    usleep(1000);
+
+    $started = microtime(true);
+    $loop->tick(2.0);
+
+    expect(microtime(true) - $started)->toBeLessThan(0.5);
+});
+
+it('keeps run() going while a future tick is queued', function () {
+    $loop = selectLoop();
+    $ran = false;
+    $loop->futureTick(function () use (&$ran, $loop) {
+        $ran = true;
+        $loop->stop();
+    });
+
+    $loop->run();
+
+    expect($ran)->toBeTrue();
+});
