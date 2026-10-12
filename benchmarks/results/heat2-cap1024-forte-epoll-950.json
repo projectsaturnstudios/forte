@@ -1,0 +1,90 @@
+{
+    "label": "r2-cap1024",
+    "server": "forte",
+    "loop": "epoll",
+    "connections": 950,
+    "nofile": 1024,
+    "php": "8.4.23",
+    "date": "2026-10-12T06:14:00+00:00",
+    "server_start_line": "INFO  Starting server on 127.0.0.1:9090 (epoll).",
+    "rss_started_kb": 67732,
+    "subscribed": 950,
+    "connect_failed": 0,
+    "connect_seconds": 0.75,
+    "rss_idle_kb": 80076,
+    "rss_per_connection_kb": 12.99,
+    "stages": {
+        "1": {
+            "publish_seconds": 1,
+            "rate": 0,
+            "publish": {
+                "stage": 1,
+                "rate": 0,
+                "accepted": 97,
+                "errors": 0,
+                "skipped": 0,
+                "statuses": {
+                    "200": 97
+                },
+                "start": 1791785647.724228,
+                "last_response": 1791785648.902024,
+                "seconds": 1.1777961254119873,
+                "events_per_second": 82.35720759063447
+            },
+            "expected_deliveries": 92150,
+            "progress_seen": 92150,
+            "last_delivery": 1791785648.993571,
+            "server_cpu_seconds": 0.5,
+            "server_rss_peak_kb": 88568,
+            "delivered": 92150,
+            "unique_events_delivered": 97,
+            "duplicate_deliveries": 0,
+            "delivered_ratio": 1,
+            "events_accepted": 97,
+            "events_per_second": 82.4,
+            "delivery_window_seconds": 1.269,
+            "deliveries_per_second": 72616,
+            "drain_ms": 91.5,
+            "p50_ms": 237.85,
+            "p99_ms": 365.58,
+            "max_ms": 386.11
+        },
+        "2": {
+            "publish_seconds": 60,
+            "rate": 0,
+            "publish": {
+                "stage": 2,
+                "rate": 0,
+                "accepted": 4282,
+                "errors": 0,
+                "skipped": 0,
+                "statuses": {
+                    "200": 4282
+                },
+                "start": 1791785649.235716,
+                "last_response": 1791785709.481466,
+                "seconds": 60.245749950408936,
+                "events_per_second": 71.07555310581597
+            },
+            "expected_deliveries": 4067900,
+            "progress_seen": 4067900,
+            "last_delivery": 1791785709.526568,
+            "server_cpu_seconds": 21.81,
+            "server_rss_peak_kb": 91348,
+            "delivered": 4067900,
+            "unique_events_delivered": 4282,
+            "duplicate_deliveries": 0,
+            "delivered_ratio": 1,
+            "events_accepted": 4282,
+            "events_per_second": 71.1,
+            "delivery_window_seconds": 60.291,
+            "deliveries_per_second": 67471,
+            "drain_ms": 45.1,
+            "p50_ms": 249.72,
+            "p99_ms": 400.8,
+            "max_ms": 601.15
+        }
+    },
+    "dropped": 0,
+    "pings_answered": 0
+}

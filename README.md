@@ -23,6 +23,24 @@ Nothing in ReactPHP sits on epoll or kqueue directly, so Forte reimplements the 
 
 No extension yet? Forte falls back to `stream_select()`, so you can deploy first and install the extension whenever you get to it.
 
+## Benchmarks
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="benchmarks/tmb-dark.svg">
+  <img alt="Forte vs Reverb, a very scientific chart. Source: trust me bro." src="benchmarks/tmb-light.svg">
+</picture>
+
+Forte outperformed Reverb on every server metric we measured, on the box most Reverb servers actually run on: one vCPU, shared with the staging sites already living there. Forte on ext-epoll against Reverb on ext-uv at 950 connections:
+
+* **67% more broadcasts per second**, every event delivered to every client.
+* **51% less CPU** per delivered message.
+* **41% less memory** per connection.
+* **24% lower median and 21% lower p99 latency** at the same publish rate.
+
+At 4,900 connections the lead holds, with 49% more throughput and 45% less memory per connection. With no extension at all, Forte on `stream_select()` beats Reverb on `stream_select()` too.
+
+Don't actually trust me, bro. The science is in [BENCHMARKS.md](BENCHMARKS.md): the box, every version, the method, every table, the raw data, the harness to rerun it, and the numbers that went the other way.
+
 ## Installation
 
 | | |
@@ -129,10 +147,10 @@ vendor/bin/pest
 ```
 
 ```console
-Tests:    8 skipped, 383 passed (1065 assertions)
+Tests:    9 skipped, 388 passed (1074 assertions)
 ```
 
-That run is Linux with ext-epoll. Skips are the other platform's driver and a test that needs `ulimit -n` above 1024. Run it once per driver you have:
+That run is Linux with ext-epoll. Skips are the other platform's driver and two tests that need `ulimit -n` above 1024. Run it once per driver you have:
 
 ```bash
 FORTE_LOOP=select vendor/bin/pest

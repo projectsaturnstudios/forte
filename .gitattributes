@@ -6,3 +6,5 @@
 /.okf/ export-ignore
 /AGENTS.md export-ignore
 /CLAUDE.md export-ignore
+/BENCHMARKS.md export-ignore
+/benchmarks/ export-ignore

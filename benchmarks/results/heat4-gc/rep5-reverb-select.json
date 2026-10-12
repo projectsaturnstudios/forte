@@ -1,0 +1,15 @@
+{
+    "running": false,
+    "protected": false,
+    "full": false,
+    "runs": 2,
+    "collected": 76,
+    "threshold": 10001,
+    "buffer_size": 32768,
+    "roots": 8705,
+    "application_time": 67.977938187,
+    "collector_time": 0.012203478,
+    "destructor_time": 0,
+    "free_time": 6.612e-06,
+    "peak": 52428800
+}
