@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" colors="true" xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd">
+  <testsuites>
+    <testsuite name="Unit"><directory suffix="Test.php">./tests/Unit</directory></testsuite>
+    <testsuite name="Feature"><directory suffix="Test.php">./tests/Feature</directory></testsuite>
+  </testsuites>
+  <php>
+    <env name="APP_KEY" value="base64:uz4B1RtFO57QGzbZX1kRYX9hIRB50+QzqFeg9zbFJlY="/>
+    <env name="FORTE_APP_ID" value="123456"/>
+    <env name="FORTE_APP_KEY" value="reverb-key"/>
+    <env name="FORTE_APP_SECRET" value="reverb-secret"/>
+  </php>
+  <source><include><directory suffix=".php">./src</directory></include></source>
+</phpunit>

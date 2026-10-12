@@ -1,0 +1,34 @@
+<?php
+
+use JMac\Testing\Double;
+use ProjectSaturnStudios\Forte\Protocols\Pusher\Channels\CacheChannel;
+use ProjectSaturnStudios\Forte\Protocols\Pusher\Channels\ChannelBroker;
+use ProjectSaturnStudios\Forte\Protocols\Pusher\Contracts\ChannelConnectionManager;
+use ProjectSaturnStudios\Forte\Tests\FakeConnection;
+
+beforeEach(function () {
+    $this->connection = new FakeConnection;
+    $this->channelConnectionManager = Double::for(ChannelConnectionManager::class);
+    $this->channelConnectionManager->expects('for')->returns($this->channelConnectionManager);
+    $this->app->instance(ChannelConnectionManager::class, $this->channelConnectionManager);
+});
+
+it('receives no data when no previous event triggered', function () {
+    $channel = ChannelBroker::create('cache-test-channel');
+    $this->channelConnectionManager->expects('add')->with($this->connection, []);
+
+    $channel->subscribe($this->connection);
+
+    $this->connection->assertNothingReceived();
+});
+
+it('stores last triggered event', function () {
+    $channel = new CacheChannel('cache-test-channel');
+
+    expect($channel->hasCachedPayload())->toBeFalse();
+
+    $channel->broadcast(['foo' => 'bar']);
+
+    expect($channel->hasCachedPayload())->toBeTrue();
+    expect($channel->cachedPayload())->toEqual(['foo' => 'bar']);
+});

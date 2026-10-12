@@ -1,0 +1,79 @@
+{
+    "name": "projectsaturnstudios/forte",
+    "description": "Drop-in replacement for Laravel Reverb on an epoll/kqueue event loop.",
+    "keywords": [
+        "laravel",
+        "websockets",
+        "reverb",
+        "pusher",
+        "epoll",
+        "kqueue"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Angel Gonzalez",
+            "email": "angel@projectsaturnstudios.com"
+        },
+        {
+            "name": "Taylor Otwell",
+            "email": "taylor@laravel.com",
+            "role": "Original author of Laravel Reverb"
+        },
+        {
+            "name": "Joe Dixon",
+            "email": "joe@laravel.com",
+            "role": "Original author of Laravel Reverb"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "guzzlehttp/psr7": "^2.6|^3.0",
+        "illuminate/console": "^11.0|^12.0|^13.0",
+        "illuminate/contracts": "^11.0|^12.0|^13.0",
+        "illuminate/http": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "laravel/prompts": "^0.1.15|^0.2.0|^0.3.0",
+        "pusher/pusher-php-server": "^7.2",
+        "ratchet/rfc6455": "^0.4",
+        "symfony/console": "^6.0|^7.0|^8.0",
+        "symfony/http-foundation": "^6.3|^7.0|^8.0",
+        "symfony/routing": "^6.3|^7.0|^8.0"
+    },
+    "require-dev": {
+        "jasonmccreary/double": "^1.0",
+        "laravel/pulse": "^1.8",
+        "orchestra/testbench": "^9.15|^10.8|^11.0",
+        "pestphp/pest": "^4.0"
+    },
+    "suggest": {
+        "ext-epoll": "Linux: pie install php-io-extensions/epoll. Forte falls back to stream_select without it.",
+        "ext-kqueue": "macOS: pie install php-io-extensions/kqueue. Forte falls back to stream_select without it."
+    },
+    "autoload": {
+        "psr-4": {
+            "ProjectSaturnStudios\\Forte\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ProjectSaturnStudios\\Forte\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ProjectSaturnStudios\\Forte\\ApplicationManagerServiceProvider",
+                "ProjectSaturnStudios\\Forte\\ForteServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
