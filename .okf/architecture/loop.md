@@ -5,7 +5,7 @@ description: Driver pick (epoll, kqueue, select), resource-id keys, level-trigge
 resource: src/Servers/Forte/Loop/Loop.php
 tags: [forte, loop, epoll, kqueue, select, timers]
 status: draft
-generated: { by: claude-opus/5.5, at: 2026-10-12T04:48:47Z }
+generated: { by: claude-opus/5.5, at: 2026-10-12T05:25:03Z }
 sources:
   - id: loop
     resource: src/Servers/Forte/Loop/Loop.php
@@ -50,4 +50,4 @@ Level-triggered on all three drivers: unread bytes report again next wait. One r
 
 ## select ceiling
 
-`SelectDriver::MAX_DESCRIPTORS = 1024` (glibc `FD_SETSIZE`); `stream_select()` misbehaves above it, so the driver refuses instead. epoll/kqueue: bound is `ulimit -n`.
+`SelectDriver::MAX_DESCRIPTORS = 1024` (glibc `FD_SETSIZE`). `stream_select()` fails outright on any set holding a descriptor *numbered* ≥ FD_SETSIZE, however few are watched — and the listener, files and sockets being refused push numbers up. So `watch()` probes each new stream with a zero-timeout `stream_select` and refuses it (`RuntimeException`) if the probe fails; the server then refuses that connection and keeps serving. A count cap (constructor arg; tests shrink it) still applies. `wait()` throws if `stream_select` fails for anything but `EINTR` (a signal waking the wait): reporting "nothing ready" there spun 0.10.1 at full CPU serving no one once a descriptor past 1023 got in. epoll/kqueue: bound is `ulimit -n`.

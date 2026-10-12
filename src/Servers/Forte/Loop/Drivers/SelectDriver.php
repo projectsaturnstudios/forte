@@ -27,19 +27,34 @@ class SelectDriver implements DriverInterface
             throw new RuntimeException('The stream_select loop driver cannot watch more than '.$this->maxDescriptors.' descriptors; install ext-epoll or ext-kqueue.');
         }
 
-        if ($mask & self::READ) {
-            $this->read[$fd] = $stream;
+        // stream_select() fails outright on any set holding a descriptor numbered FD_SETSIZE or higher, however
+        // few it watches, and every other descriptor the process holds pushes numbers up. Probe the number itself.
+        $probe = [$stream];
+        $none = null;
+
+        if (@stream_select($probe, $none, $none, 0) === false) {
+            throw new RuntimeException('The stream_select loop driver cannot watch a descriptor numbered past FD_SETSIZE ('.self::MAX_DESCRIPTORS.'); install ext-epoll or ext-kqueue.');
         }
-        if ($mask & self::WRITE) {
-            $this->write[$fd] = $stream;
-        }
+
+        $this->add($fd, $stream, $mask);
     }
 
     public function modify(int $fd, int $mask): void
     {
         $stream = $this->read[$fd] ?? $this->write[$fd];
         unset($this->read[$fd], $this->write[$fd]);
-        $this->watch($fd, $stream, $mask);
+        $this->add($fd, $stream, $mask);
+    }
+
+    /** @param resource $stream */
+    protected function add(int $fd, $stream, int $mask): void
+    {
+        if ($mask & self::READ) {
+            $this->read[$fd] = $stream;
+        }
+        if ($mask & self::WRITE) {
+            $this->write[$fd] = $stream;
+        }
     }
 
     public function unwatch(int $fd): void
@@ -64,9 +79,22 @@ class SelectDriver implements DriverInterface
         $seconds = $timeout === null ? null : (int) floor($timeout);
         $micro = $timeout === null ? 0 : (int) (($timeout - floor($timeout)) * 1e6);
 
+        error_clear_last();
         $ready = @stream_select($read, $write, $except, $seconds, $micro);
 
-        if ($ready === false || $ready === 0) {
+        if ($ready === false) {
+            $error = error_get_last()['message'] ?? 'unknown error';
+
+            // A signal (forte:start's SIGTERM, SIGINT) interrupting the wait is a wakeup, not a failure.
+            if (str_contains($error, 'Interrupted system call')) {
+                return [];
+            }
+
+            // Reporting "nothing ready" here would spin the loop at full CPU, serving no one.
+            throw new RuntimeException("stream_select failed: {$error}");
+        }
+
+        if ($ready === 0) {
             return [];
         }
 

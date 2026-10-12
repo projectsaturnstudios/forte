@@ -94,21 +94,48 @@ it('times out and returns nothing', function (callable $make) {
     expect((hrtime(true) - $start) / 1e9)->toBeGreaterThanOrEqual(0.02);
 })->with('drivers');
 
-it('select refuses more descriptors than FD_SETSIZE', function () {
+/** Socket pairs held open, unwatched, until the next descriptor the process opens is numbered at least $number. */
+function descriptorsUpTo(int $number): array
+{
     $limit = function_exists('posix_getrlimit') ? (posix_getrlimit()['soft openfiles'] ?? 0) : 0;
-    if ($limit !== 'unlimited' && (int) $limit < 2 * SelectDriver::MAX_DESCRIPTORS + 64) {
-        $this->markTestSkipped("needs ulimit -n >= ".(2 * SelectDriver::MAX_DESCRIPTORS + 64).", have {$limit}");
+    if ($limit !== 'unlimited' && (int) $limit < $number + 64) {
+        test()->markTestSkipped("needs ulimit -n >= ".($number + 64).", have {$limit}");
     }
-    $driver = new SelectDriver;
-    $pairs = [];
-    for ($i = 0; $i < SelectDriver::MAX_DESCRIPTORS; $i++) {
-        $pairs[] = $pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
-        $driver->watch((int) $pair[0], $pair[0], DriverInterface::READ);
-    }
-    $extra = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
 
-    expect(fn () => $driver->watch((int) $extra[0], $extra[0], DriverInterface::READ))
-        ->toThrow(RuntimeException::class, 'cannot watch more than 1024 descriptors');
+    $held = [];
+    do {
+        $held[] = $pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
+        $probe = [$pair[1]];
+        $none = null;
+    } while (@stream_select($probe, $none, $none, 0) !== false);
+
+    return $held;
+}
+
+it('select refuses a descriptor numbered past FD_SETSIZE, however few it watches', function () {
+    $held = descriptorsUpTo(SelectDriver::MAX_DESCRIPTORS);
+    $driver = new SelectDriver;
+    [$low, $lowPeer] = $held[0];
+    $high = end($held)[1];
+
+    expect(fn () => $driver->watch((int) $high, $high, DriverInterface::READ))
+        ->toThrow(RuntimeException::class, 'numbered past');
+
+    // The refusal leaves the driver serving what it already watches.
+    $driver->watch((int) $low, $low, DriverInterface::READ);
+    fwrite($lowPeer, 'x');
+
+    expect(iterator_to_array($driver->wait(0.0), false))->toBe([[(int) $low, DriverInterface::READ]]);
+});
+
+it('select throws instead of spinning when stream_select itself fails', function () {
+    $held = descriptorsUpTo(SelectDriver::MAX_DESCRIPTORS);
+    $driver = new SelectDriver;
+    $high = end($held)[1];
+    // A descriptor that got past watch() some other way: wait() must not report "nothing ready" forever.
+    (new ReflectionProperty($driver, 'read'))->setValue($driver, [(int) $high => $high]);
+
+    expect(fn () => iterator_to_array($driver->wait(0.0)))->toThrow(RuntimeException::class, 'stream_select failed');
 });
 
 it('select counts a descriptor watched both ways once against the ceiling', function () {
