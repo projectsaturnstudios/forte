@@ -9,6 +9,27 @@ permissions:
   contents: read
 
 jobs:
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Audit dependencies for security advisories
+        run: composer audit --no-interaction
+
   tests:
     name: PHP ${{ matrix.php }} ${{ matrix.ts }} - ${{ matrix.loop }}
     runs-on: ${{ matrix.os }}
