@@ -1,6 +1,6 @@
 # Benchmarks
 
-Forte 0.10.2 against Laravel Reverb 1.12.0, on the kind of box most Reverb servers run on: one shared vCPU with other sites on it. Every number here comes from the JSON files in [`benchmarks/results/`](benchmarks/results/), which the harness in [`benchmarks/harness/`](benchmarks/harness/) wrote. [`benchmarks/charts.py`](benchmarks/charts.py) draws the chart and prints the tables below from those files.
+Forte 0.10.2 against Laravel Reverb 1.12.0, on the kind of box most Reverb servers run on: one shared vCPU with other sites on it. Every number here comes from the JSON files in [`benchmarks/results/`](benchmarks/results/), which the harness in [`benchmarks/harness/`](benchmarks/harness/) wrote. [`benchmarks/charts.py`](benchmarks/charts.py) draws the chart and prints the tables below from those files. [`benchmarks/report.py`](benchmarks/report.py) writes [`benchmarks/report.html`](benchmarks/report.html), a self-contained page with charts and inputs over every heat that opens offline.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="benchmarks/forte-vs-reverb-dark.svg">
@@ -193,6 +193,7 @@ bench/
 ```bash
 bench/harness/heats.sh                       # all four heats, about 40 minutes
 python3 benchmarks/charts.py                 # redraws the SVGs and prints the tables from benchmarks/results
+python3 benchmarks/report.py                 # rewrites benchmarks/report.html from benchmarks/results
 python3 benchmarks/harness/analyze-reps.py   # Heat 4 per-event stall report
 ```
 

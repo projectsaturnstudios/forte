@@ -5,3 +5,4 @@
 .DS_Store
 /tests/Specification/reports/
 /tests/Specification/reports-pi/
+__pycache__/

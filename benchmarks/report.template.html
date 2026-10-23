@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forte Benchmarks</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1b1f24; --muted: #5d6673; --line: #dfe3e8;
+  --good: #1a7f37; --bad: #cf222e; --chip: #eef1f5;
+  --c-reverb-select: #a9b4c0; --c-reverb-uv: #6e7b8b; --c-forte-select: #ffb77a; --c-forte-epoll: #e8590c;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216; --panel: #171b21; --ink: #e6e9ee; --muted: #9aa4b2; --line: #2a313a;
+    --good: #3fb950; --bad: #f85149; --chip: #222832;
+    --c-reverb-select: #4d5866; --c-reverb-uv: #8b98a9; --c-forte-select: #a8471b; --c-forte-epoll: #ff8c42;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216; --panel: #171b21; --ink: #e6e9ee; --muted: #9aa4b2; --line: #2a313a;
+  --good: #3fb950; --bad: #f85149; --chip: #222832;
+  --c-reverb-select: #4d5866; --c-reverb-uv: #8b98a9; --c-forte-select: #a8471b; --c-forte-epoll: #ff8c42;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header, main { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+header { padding-top: 24px; display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; justify-content: space-between; }
+h1 { font-size: 22px; margin: 0; }
+h2 { font-size: 16px; margin: 0 0 12px; }
+.sub { color: var(--muted); font-size: 13px; }
+.controls { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 12px 0; border-bottom: 1px solid var(--line); margin-bottom: 16px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+select { width: 100%; min-width: 0; }
+select, button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; }
+select:disabled { opacity: 0.45; }
+button { cursor: pointer; }
+.cells { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--chip); font-size: 13px; color: var(--ink); cursor: pointer; user-select: none; }
+.chip input { margin: 0; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+.chart { position: relative; height: 320px; }
+.wide { grid-column: 1 / -1; }
+.scroll { overflow-x: auto; }
+.note { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+.note:empty { display: none; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 600; }
+.win { color: var(--good); font-weight: 600; }
+footer { max-width: 1180px; margin: 24px auto; padding: 0 16px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Forte benchmarks</h1>
+    <div class="sub" id="subtitle"></div>
+  </div>
+  <button id="theme" type="button" title="Light, dark or the system's theme">Theme: auto</button>
+</header>
+<main>
+  <section class="controls" aria-label="Filters">
+    <label>Heat <select id="heat"></select></label>
+    <label>Metric <select id="metric"></select></label>
+    <label>Rate (Heat 4) <select id="rate"><option value="10">10 events/s</option><option value="25">25 events/s</option></select></label>
+    <label>Statistic (Heat 4) <select id="stat"></select></label>
+    <div class="cells" id="cells" role="group" aria-label="Cells shown"></div>
+  </section>
+
+  <div class="grid">
+    <section class="panel"><h2 id="t-bars"></h2><div class="chart"><canvas id="bars"></canvas></div></section>
+    <section class="panel"><h2 id="t-lines"></h2><div class="chart"><canvas id="lines"></canvas></div></section>
+    <section class="panel"><h2 id="t-delta"></h2><div class="chart"><canvas id="delta"></canvas></div></section>
+    <section class="panel"><h2 id="t-hist"></h2><div class="chart"><canvas id="hist"></canvas></div></section>
+    <section class="panel wide"><h2 id="t-table"></h2><div class="scroll"><table id="table"></table></div><p class="note" id="note"></p></section>
+  </div>
+</main>
+<footer>Each loop is compared with its counterpart: Forte on <code>stream_select</code> with Reverb on <code>stream_select</code>, and Forte on ext-epoll with Reverb on ext-uv. Every number comes from <code>benchmarks/results/</code>, which the harness in <code>benchmarks/harness/</code> wrote. Chart.js is inlined under its MIT license.</footer>
+
+<script>/*__CHARTJS__*/</script>
+<script>
+const DATA = /*__DATA__*/null;
+// Heats 1-3: one run per cell; the sixty-second stage unless the name says otherwise.
+const FLAT = {
+  eps_60: { name: 'Events/s, 60 s test', unit: 'events/s', better: 'high', digits: 1 },
+  eps_1: { name: 'Events/s, 1 s test', unit: 'events/s', better: 'high', digits: 1 },
+  us_per_delivery: { name: 'Server CPU per delivery', unit: 'µs', better: 'low', digits: 2 },
+  kb_per_conn: { name: 'Memory per idle connection', unit: 'KB', better: 'low', digits: 2 },
+  connect_s: { name: 'Subscribe all clients', unit: 's', better: 'low', digits: 2 },
+  events_60: { name: 'Events accepted, 60 s', unit: 'events', better: 'high', digits: 0 },
+  delivered_60: { name: 'Deliveries, 60 s', unit: 'deliveries', better: 'high', digits: 0 },
+  dps_60: { name: 'Deliveries/s incl. drain', unit: 'deliveries/s', better: 'high', digits: 0 },
+  drain_s: { name: 'Drain after publishing stopped', unit: 's', better: 'low', digits: 1 },
+  cpu_60: { name: 'Server CPU, 60 s test', unit: 's', better: 'low', digits: 2 },
+  rss_peak_mb: { name: 'Server RSS peak', unit: 'MB', better: 'low', digits: 0 },
+  p50_60: { name: 'p50 latency, 60 s test', unit: 'ms', better: 'low', digits: 0 },
+  p99_60: { name: 'p99 latency, 60 s test', unit: 'ms', better: 'low', digits: 0 },
+};
+// Heat 4: five interleaved runs per cell at each fixed rate.
+const FIXED = {
+  p50: { name: 'p50 latency', unit: 'ms', better: 'low', digits: 1 },
+  p99: { name: 'p99 latency', unit: 'ms', better: 'low', digits: 1 },
+  max: { name: 'Slowest delivery', unit: 'ms', better: 'low', digits: 1 },
+  cpu: { name: 'Server CPU per 30 s', unit: 's', better: 'low', digits: 2 },
+  stalled: { name: 'Events with a delivery > 50 ms', unit: 'events', better: 'low', digits: 0 },
+};
+const NOTES = {
+  1: 'At 450 connections Forte writes faster than one client process can read. Every event still arrives, but up to 36 s after publishing stops. In this heat the drain, the deliveries/s that includes it, peak RSS and the flat-out latency measure that backlog in the load clients, not the server. Events/s and CPU per delivery are the server comparison.',
+  3: 'Heat 3 ran only the extension cells: stream_select stops at 1,024 descriptors.',
+  4: 'Heat 4 holds every server to the same publish rate, below the slowest one\'s ceiling (42.7 events/s for Reverb on ext-uv in Heat 2), so latency compares servers instead of queue depth.',
+};
+const $ = (id) => document.getElementById(id);
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+const charts = {};
+const state = { heat: 4, metric: { flat: 'eps_60', fixed: 'p99' }, rate: '25', stat: 'median', hidden: new Set() };
+
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const colour = (cell) => css('--c-' + cell.replace(':', '-'));
+const label = (cell) => DATA.names[cell] || cell;
+const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const fmt = (v, d) => v == null ? '—' : v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+const fixedMode = () => state.heat === 4;
+const metrics = () => fixedMode() ? FIXED : FLAT;
+const metric = () => fixedMode() ? state.metric.fixed : state.metric.flat;
+const heatData = (n) => DATA.heats.find((h) => h.heat === n);
+
+function cellsAll() {
+  const present = fixedMode() ? Object.keys(DATA.fixed).filter((c) => Object.keys(DATA.fixed[c]).length) : Object.keys(heatData(state.heat).cells);
+  return DATA.order.filter((c) => present.includes(c));
+}
+const cellsShown = () => cellsAll().filter((c) => !state.hidden.has(c));
+
+/** Heats 1-3: the run's value. Heat 4: the median of the reps with their range, or one rep. */
+function value(cell, key = metric(), heat = state.heat, rate = state.rate, stat = state.stat) {
+  if (heat !== 4) {
+    const run = heatData(heat)?.cells[cell];
+    return run && run[key] != null ? { v: run[key], min: run[key], max: run[key], n: 1 } : null;
+  }
+  const reps = DATA.fixed[cell]?.[rate]?.reps || [];
+  if (!reps.length) return null;
+  if (stat === 'median') { const xs = reps.map((r) => r[key]); return { v: median(xs), min: Math.min(...xs), max: Math.max(...xs), n: xs.length }; }
+  const r = reps.find((x) => String(x.rep) === stat);
+  return r ? { v: r[key], min: r[key], max: r[key], n: 1 } : null;
+}
+
+function fillSelect(el, options, current) {
+  el.innerHTML = options.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+  el.value = String(current);
+}
+function setupControls() {
+  fillSelect($('heat'), [...DATA.heats.map((h) => [h.heat, `Heat ${h.heat} · ${h.connections.toLocaleString()} connections`]), [4, 'Heat 4 · fixed rate, 950 connections']], state.heat);
+  fillSelect($('metric'), Object.entries(metrics()).map(([k, m]) => [k, `${m.name} (${m.unit})`]), metric());
+  const reps = [...new Set(Object.values(DATA.fixed).flatMap((c) => Object.values(c).flatMap((r) => r.reps.map((x) => x.rep))))].sort((a, b) => a - b);
+  fillSelect($('stat'), [['median', 'Median of 5 runs'], ...reps.map((r) => [r, 'Run ' + r])], state.stat);
+  $('rate').value = state.rate;
+  $('stat').disabled = !fixedMode();
+  $('cells').innerHTML = cellsAll().map((c) => `<label class="chip"><input type="checkbox" value="${c}" ${state.hidden.has(c) ? '' : 'checked'}><span class="dot" style="background:${colour(c)}"></span>${label(c)}</label>`).join('');
+  const php = DATA.heats[0] && Object.values(DATA.heats[0].cells)[0]?.php;
+  $('subtitle').textContent = `Forte against Laravel Reverb on one shared vCPU${php ? ' · PHP ' + php : ''} · Heats 1–3 flat out, Heat 4 at a fixed rate`;
+}
+
+function baseOptions(yTitle, xTitle) {
+  const ink = css('--ink'), muted = css('--muted'), line = css('--line');
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { labels: { color: ink, boxWidth: 12 } }, tooltip: { intersect: false, mode: 'nearest' } },
+    scales: {
+      x: { ticks: { color: muted }, grid: { color: line }, title: { display: !!xTitle, text: xTitle || '', color: muted } },
+      y: { beginAtZero: true, title: { display: true, text: yTitle, color: muted }, ticks: { color: muted }, grid: { color: line } },
+    },
+  };
+}
+function draw(id, config) {
+  charts[id]?.destroy();
+  charts[id] = new Chart($(id), config);
+}
+
+function render() {
+  const key = metric(), m = metrics()[key], shown = cellsShown();
+  const where = fixedMode() ? `Heat 4 · ${state.rate}/s · ${state.stat === 'median' ? 'median of 5 runs' : 'run ' + state.stat}` : `Heat ${state.heat}`;
+
+  // 1. The metric for each cell, with the runs' range in Heat 4.
+  $('t-bars').textContent = `${m.name} · ${where}`;
+  const bars = shown.map((c) => value(c));
+  draw('bars', {
+    type: 'bar',
+    data: { labels: shown.map(label), datasets: [
+      { label: m.name, data: bars.map((b) => b?.v ?? null), backgroundColor: shown.map(colour), borderRadius: 6 },
+      ...(fixedMode() && state.stat === 'median' ? [{ label: 'range of runs', data: bars.map((b) => b ? [b.min, b.max] : null), backgroundColor: css('--muted') + '55', barPercentage: 0.15, grouped: false }] : []),
+    ] },
+    options: { ...baseOptions(m.unit), plugins: { ...baseOptions().plugins, legend: { display: false },
+      tooltip: { callbacks: { label: (ctx) => { const b = bars[ctx.dataIndex]; return !b ? 'no data' : b.n > 1 ? `${fmt(b.v, m.digits)} ${m.unit} (min ${fmt(b.min, m.digits)}, max ${fmt(b.max, m.digits)})` : `${fmt(b.v, m.digits)} ${m.unit}`; } } } } },
+  });
+
+  // 2. Heats 1-3: the metric across connection counts. Heat 4: every run in order.
+  if (fixedMode()) {
+    $('t-lines').textContent = `${m.name} in each run · ${state.rate}/s`;
+    const runs = [1, 2, 3, 4, 5];
+    draw('lines', {
+      type: 'line',
+      data: { labels: runs.map((r) => 'run ' + r), datasets: shown.map((c) => ({
+        label: label(c), data: runs.map((r) => value(c, key, 4, state.rate, String(r))?.v ?? null),
+        borderColor: colour(c), backgroundColor: colour(c), tension: 0.2, spanGaps: true,
+      })) },
+      options: baseOptions(m.unit),
+    });
+  } else {
+    $('t-lines').textContent = `${m.name} across connections`;
+    draw('lines', {
+      type: 'line',
+      data: { labels: DATA.heats.map((h) => h.connections.toLocaleString()), datasets: shown.map((c) => ({
+        label: label(c), data: DATA.heats.map((h) => value(c, key, h.heat)?.v ?? null),
+        borderColor: colour(c), backgroundColor: colour(c), tension: 0.2, spanGaps: true,
+      })) },
+      options: baseOptions(m.unit, 'connections'),
+    });
+  }
+
+  // 3. Forte against its counterpart: the change in this metric, per heat or per rate.
+  const pairs = Object.entries(DATA.rival);
+  const groups = fixedMode() ? ['10', '25'] : DATA.heats.map((h) => h.heat);
+  const change = (forte, reverb, g) => {
+    const f = fixedMode() ? value(forte, key, 4, g, 'median') : value(forte, key, g);
+    const r = fixedMode() ? value(reverb, key, 4, g, 'median') : value(reverb, key, g);
+    return f && r && r.v ? (f.v / r.v - 1) * 100 : null;
+  };
+  $('t-delta').textContent = `Forte against its counterpart · ${m.name} (${m.better === 'high' ? 'higher' : 'lower'} is better)`;
+  draw('delta', {
+    type: 'bar',
+    data: { labels: groups.map((g) => fixedMode() ? `${g}/s` : `${heatData(g).connections.toLocaleString()} connections`),
+      datasets: pairs.map(([forte, reverb]) => ({ label: `${label(forte)} vs ${label(reverb)}`, data: groups.map((g) => change(forte, reverb, g)), backgroundColor: colour(forte), borderRadius: 4 })) },
+    options: { ...baseOptions('% change'), scales: { ...baseOptions('% change').scales, y: { ...baseOptions('% change').scales.y, beginAtZero: true } },
+      plugins: { ...baseOptions().plugins, tooltip: { callbacks: { label: (ctx) => ctx.raw == null ? 'no data' : `${ctx.dataset.label}: ${ctx.raw > 0 ? '+' : ''}${ctx.raw.toFixed(1)}%` } } } },
+  });
+
+  // 4. Heat 4: every event's slowest delivery, as a share of the events, across all five runs.
+  $('t-hist').textContent = `Heat 4 · slowest delivery of each event · ${state.rate}/s, 5 runs`;
+  const bins = Array.from({ length: DATA.bins + 1 }, (_, i) => i < DATA.bins ? `${i * DATA.bin_ms}–${(i + 1) * DATA.bin_ms}` : `> ${DATA.bins * DATA.bin_ms}`);
+  draw('hist', {
+    type: 'line',
+    data: { labels: bins, datasets: shown.filter((c) => DATA.fixed[c]?.[state.rate]).map((c) => {
+      const row = DATA.fixed[c][state.rate];
+      return { label: label(c), data: row.hist.map((n) => n / row.events * 100), borderColor: colour(c), backgroundColor: colour(c), tension: 0.25, pointRadius: 2 };
+    }) },
+    options: baseOptions('% of events', 'slowest delivery (ms)'),
+  });
+
+  // 5. Table: every metric of the heat, a column per cell, the best value in each row marked.
+  const rows = Object.entries(metrics()).map(([k, mm]) => {
+    const vals = shown.map((c) => {
+      if (fixedMode() && k === 'stalled' && state.stat === 'median') {
+        const reps = DATA.fixed[c]?.[state.rate]?.reps || [];
+        return reps.length ? reps.reduce((s, r) => s + r.stalled, 0) : null;
+      }
+      return value(c, k)?.v ?? null;
+    });
+    const xs = vals.filter((v) => v != null);
+    return { k, mm, vals, best: xs.length > 1 ? (mm.better === 'high' ? Math.max(...xs) : Math.min(...xs)) : null };
+  });
+  if (fixedMode()) {
+    const delivered = shown.map((c) => { const reps = DATA.fixed[c]?.[state.rate]?.reps || []; const d = reps.reduce((s, r) => s + r.delivered, 0), e = reps.reduce((s, r) => s + r.expected, 0); return e ? d / e * 100 : null; });
+    rows.push({ k: 'delivered', mm: { name: 'Delivered, 5 runs', unit: '%', digits: 0 }, vals: delivered, best: null });
+    rows.push({ k: 'gc', mm: { name: 'GC runs / collector time, whole server run', unit: '', digits: 0 }, text: shown.map((c) => {
+      const g = DATA.gc[c] || []; return g.length ? `${median(g.map((x) => x.runs))} / ${median(g.map((x) => x.collector_ms)).toFixed(1)} ms` : '—'; }) });
+  }
+  $('t-table').textContent = `${where} · every metric`;
+  $('table').innerHTML = `<thead><tr><th></th>${shown.map((c) => `<th><span class="dot" style="background:${colour(c)}"></span> ${label(c)}</th>`).join('')}</tr></thead><tbody>` +
+    rows.map((r) => `<tr><td>${r.mm.name}${fixedMode() && r.k === 'stalled' && state.stat === 'median' ? ', sum of 5 runs' : ''}${r.mm.unit ? ` (${r.mm.unit})` : ''}</td>${
+      r.text ? r.text.map((t) => `<td>${t}</td>`).join('') : r.vals.map((v) => `<td class="${r.best != null && v === r.best ? 'win' : ''}">${fmt(v, r.mm.digits)}</td>`).join('')}</tr>`).join('') + '</tbody>';
+  $('note').textContent = NOTES[state.heat] || '';
+}
+
+function applyTheme(mode) {
+  if (mode === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', mode);
+  $('theme').textContent = 'Theme: ' + mode;
+  store.set('forte-bench-theme', mode);
+}
+
+function bind() {
+  $('heat').onchange = (e) => { state.heat = Number(e.target.value); setupControls(); render(); };
+  $('metric').onchange = (e) => { state.metric[fixedMode() ? 'fixed' : 'flat'] = e.target.value; render(); };
+  $('rate').onchange = (e) => { state.rate = e.target.value; render(); };
+  $('stat').onchange = (e) => { state.stat = e.target.value; render(); };
+  $('cells').onchange = (e) => { if (e.target.checked) state.hidden.delete(e.target.value); else state.hidden.add(e.target.value); render(); };
+  $('theme').onclick = () => { const modes = ['auto', 'light', 'dark']; applyTheme(modes[(modes.indexOf(store.get('forte-bench-theme') || 'auto') + 1) % 3]); setupControls(); render(); };
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { setupControls(); render(); });
+}
+
+applyTheme(store.get('forte-bench-theme') || 'auto');
+setupControls();
+bind();
+render();
+</script>
+</body>
+</html>

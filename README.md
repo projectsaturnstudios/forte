@@ -39,7 +39,7 @@ Forte outperformed Reverb on every server metric we measured, on the box most Re
 
 At 4,900 connections the lead holds, with 49% more throughput and 45% less memory per connection. With no extension at all, Forte on `stream_select()` beats Reverb on `stream_select()` too.
 
-Don't actually trust me, bro. The science is in [BENCHMARKS.md](BENCHMARKS.md): the box, every version, the method, every table, the raw data, the harness to rerun it, and the numbers that went the other way.
+Don't actually trust me, bro. The science is in [BENCHMARKS.md](BENCHMARKS.md): the box, every version, the method, every table, the raw data, the harness to rerun it, and the numbers that went the other way. **[Open the interactive report](https://htmlpreview.github.io/?https://github.com/projectsaturnstudios/forte/blob/main/benchmarks/report.html)**: charts for every heat, metric, rate and run, with inputs to filter them. It's one self-contained file, [`benchmarks/report.html`](benchmarks/report.html), that also opens offline from a clone.
 
 ## Installation
 
