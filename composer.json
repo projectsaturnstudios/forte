@@ -47,8 +47,9 @@
         "pestphp/pest": "^4.0"
     },
     "suggest": {
-        "ext-epoll": "Linux: pie install php-io-extensions/epoll. Forte falls back to stream_select without it.",
-        "ext-kqueue": "macOS: pie install php-io-extensions/kqueue. Forte falls back to stream_select without it."
+        "ext-epoll": "Linux: pie install php-io-extensions/epoll (^0.10.6|^0.11.0). Forte falls back to stream_select without it.",
+        "ext-kqueue": "macOS: pie install php-io-extensions/kqueue (^0.10.5|^0.11.0). Forte falls back to stream_select without it.",
+        "ext-posi": "pie install php-io-extensions/posi (^0.10.6|^0.11.0)."
     },
     "autoload": {
         "psr-4": {
@@ -61,6 +62,9 @@
         }
     },
     "extra": {
+        "branch-alias": {
+            "dev-main": "0.11.x-dev"
+        },
         "laravel": {
             "providers": [
                 "ProjectSaturnStudios\\Forte\\ApplicationManagerServiceProvider",
