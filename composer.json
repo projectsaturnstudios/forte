@@ -44,7 +44,7 @@
         "jasonmccreary/double": "^1.0",
         "laravel/pulse": "^1.8",
         "orchestra/testbench": "^9.15|^10.8|^11.0",
-        "pestphp/pest": "^4.0"
+        "pestphp/pest": "^5.3"
     },
     "suggest": {
         "ext-epoll": "Linux: pie install php-io-extensions/epoll. Forte falls back to stream_select without it.",
